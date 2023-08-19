@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { LetterState } from './types'
+import { getKeyMapOfTheDay, allWords } from './words'
 
-defineProps<{
+const props = defineProps<{
   letterStates: Record<string, LetterState>
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'key', key: string): void
 }>()
 
-const rows = [
-  'qwertyuiop'.split(''),
-  'asdfghjkl'.split(''),
-  ['Enter', ...'zxcvbnm'.split(''), 'Backspace']
+const keyMap = getKeyMapOfTheDay()
+
+
+var rows = [
+  keyMap[0].split(''),
+  keyMap[1].split(''),
+  ['Enter', ...keyMap[2].split(''), 'Backspace']
 ]
 </script>
 

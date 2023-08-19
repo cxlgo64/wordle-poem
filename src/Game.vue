@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { onUnmounted } from 'vue'
-import { getWordOfTheDay, allWords } from './words'
+import { getPoemOfTheDay, allWords } from './words'
 import Keyboard from './Keyboard.vue'
 import { LetterState } from './types'
 
 // Get word of the day
-const answer = getWordOfTheDay()
+const answer = getPoemOfTheDay()
 
 // Board state. Each tile is represented as { letter, state }
 const board = $ref(
-  Array.from({ length: 6 }, () =>
+  Array.from({ length: answer.length }, () =>
     Array.from({ length: 5 }, () => ({
       letter: '',
       state: LetterState.INITIAL
@@ -43,8 +43,8 @@ onUnmounted(() => {
 
 function onKey(key: string) {
   if (!allowInput) return
-  if (/^[a-zA-Z]$/.test(key)) {
-    fillTile(key.toLowerCase())
+  if (/^[\u4e00-\u9fff]+$/.test(key)) {
+    fillTile(key)
   } else if (key === 'Backspace') {
     clearTile()
   } else if (key === 'Enter') {
@@ -70,9 +70,11 @@ function clearTile() {
   }
 }
 
+// change the original
 function completeRow() {
   if (currentRow.every((tile) => tile.letter)) {
     const guess = currentRow.map((tile) => tile.letter).join('')
+    console.log(guess)
     if (!allWords.includes(guess) && guess !== answer) {
       shake()
       showMessage(`Not in word list`)
@@ -179,13 +181,7 @@ function genResultGrid() {
     </div>
   </Transition>
   <header>
-    <h1>VVORDLE</h1>
-    <a
-      id="source-link"
-      href="https://github.com/yyx990803/vue-wordle"
-      target="_blank"
-      >Source</a
-    >
+    <h1>诗词版Wordle</h1>
   </header>
   <div id="board">
     <div
@@ -216,6 +212,13 @@ function genResultGrid() {
     </div>
   </div>
   <Keyboard @key="onKey" :letter-states="letterStates" />
+  <div class="footer">
+  <a
+      id="source-link"
+      href="https://github.com/yyx990803/vue-wordle"
+      target="_blank"
+      >原版代码Source</a
+    ></div>
 </template>
 
 <style scoped>
@@ -370,5 +373,11 @@ function genResultGrid() {
   .tile {
     font-size: 3vh;
   }
+}
+
+.footer{
+  position: relative;
+  width: 200px;
+  margin: 20px 20px 20px 20px;
 }
 </style>
