@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f5efe2">
+<meta name="description" content="诗词 Wordle —— 每天一句古诗，六次机会猜出是哪一句。">
+<title>诗词 Wordle · 猜一句诗</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-side">
+      <button class="icon-btn" id="btnHelp" aria-label="玩法说明">?</button>
+    </div>
+    <h1 class="brand"><span class="seal">诗</span>诗词 Wordle</h1>
+    <div class="topbar-side right">
+      <button class="icon-btn" id="btnTheme" aria-label="切换主题">◐</button>
+      <button class="icon-btn" id="btnStats" aria-label="统计">☰</button>
+    </div>
+  </header>
+
+  <div class="modebar">
+    <div class="chip-group" id="kindBar">
+      <button class="mode-chip is-on" data-kind="qiyan">七言</button>
+      <button class="mode-chip" data-kind="wuyan">五言</button>
+      <button class="mode-chip" data-kind="ci">词句</button>
+    </div>
+    <div class="chip-group" id="playBar">
+      <button class="mode-chip is-on" data-play="daily">每日</button>
+      <button class="mode-chip" data-play="free">自由练</button>
+    </div>
+  </div>
+
+  <div class="metabar" id="metaBar">
+    <span class="meta-date" id="metaDate">— —</span>
+    <span class="meta-dot">·</span>
+    <span class="meta-info" id="metaInfo">— —</span>
+    <span class="meta-hinttag" id="hintTag" hidden></span>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board" role="grid" aria-label="猜诗格子"></div>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+
+  <div class="knownbar" id="knownBar" hidden></div>
+
+  <div class="keys-tip">候选字 · 取自三首诗词（含答案那一首）</div>
+  <div class="keys" id="keys" aria-label="候选字盘"></div>
+
+  <div class="controls">
+    <button class="ctl-btn ghost" id="btnHintAuthor">作者</button>
+    <button class="ctl-btn ghost" id="btnHintTitle">诗题</button>
+    <button class="ctl-btn ghost" id="btnHintImage">看图</button>
+    <button class="ctl-btn ghost" id="btnHintChar">揭一字</button>
+    <button class="ctl-btn" id="btnBack">退格</button>
+    <button class="ctl-btn primary" id="btnEnter">提交</button>
+  </div>
+
+  <input id="kbInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="输入诗句">
+</div>
+
+<!-- 说明弹窗 -->
+<div class="modal" id="modalHelp" hidden>
+  <div class="modal-card">
+    <button class="modal-close" data-close>✕</button>
+    <h2>怎么玩</h2>
+    <p class="lead">六次机会，猜出今天是<strong>哪一句诗</strong>。</p>
+    <div class="demo">
+      <div class="demo-row">
+        <span class="tile correct">月</span><span class="tile absent">落</span><span class="tile present">乌</span><span class="tile absent">啼</span>
+      </div>
+      <ul class="demo-list">
+        <li><span class="tile correct">月</span> 第 1 字就是「月」，位置也对。</li>
+        <li><span class="tile present">乌</span> 这句诗里有「乌」，但不在这个位置。</li>
+        <li><span class="tile absent">啼</span> 这句诗里没有「啼」。</li>
+      </ul>
+    </div>
+    <div class="rules">
+      <p><b>点字输入</b>——下方字盘由<strong>三首诗</strong>（含答案那一首）各四句的汉字去重打乱而成，点字即可填入格子，不用调输入法。</p>
+      <p><b>提交必须是诗库里的真实诗句</b>，瞎拼的字不算。答案一定在字盘里拼得出来，所以只点字盘也能通关。</p>
+      <p><b>提示</b>：可以求「作者」「诗题」，点「看图」看 AI 依诗意画的画面，或花一次机会「揭一字」。用过的提示会记在成绩里。</p>
+      <p><b>每日一题</b>按日期出题，同一天大家题目一致；「自由练」随时随机加练。</p>
+    </div>
+    <button class="big-btn" data-close>知道了</button>
+  </div>
+</div>
+
+<!-- 统计弹窗 -->
+<div class="modal" id="modalStats" hidden>
+  <div class="modal-card">
+    <button class="modal-close" data-close>✕</button>
+    <h2>战绩</h2>
+    <div class="stats-grid" id="statsGrid"></div>
+    <h3>猜中次数分布</h3>
+    <div class="dist" id="distBox"></div>
+    <div class="stat-foot">
+      <button class="big-btn ghost" id="btnResetStats">清空战绩</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结果弹窗 -->
+<div class="modal" id="modalResult" hidden>
+  <div class="modal-card result-card">
+    <button class="modal-close" data-close>✕</button>
+    <h2 id="resultTitle">猜中了</h2>
+    <div class="result-poem" id="resultPoem"></div>
+    <div class="result-src" id="resultSrc"></div>
+    <div class="result-note" id="resultNote"></div>
+    <div class="result-btns">
+      <button class="big-btn" id="btnShare">分享成绩</button>
+      <button class="big-btn ghost" id="btnNext">再来一局</button>
+    </div>
+  </div>
+</div>
+
+<!-- 图片提示弹窗 -->
+<div class="modal" id="modalImage" hidden>
+  <div class="modal-card image-card">
+    <button class="modal-close" data-close>✕</button>
+    <div class="hint-image-wrap">
+      <img id="hintImage" alt="诗句画面">
+    </div>
+    <div class="image-note">画面由 AI 依此句意境生成 · 仅作猜诗提示</div>
+  </div>
+</div>
+
+<script src="js/data-poems.js"></script>
+<script src="js/data-ci.js"></script>
+<script src="js/hint-images.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

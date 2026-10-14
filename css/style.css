@@ -1,0 +1,529 @@
+/* 诗词 Wordle —— 宣纸风格样式 */
+
+:root {
+  --paper: #f6f1e6;
+  --paper-2: #efe7d5;
+  --card: #fffdf7;
+  --ink: #2e2a24;
+  --ink-soft: #6d6455;
+  --ink-faint: #9a9184;
+  --line: #ddd2b8;
+  --line-strong: #c9bb9c;
+  --seal: #b23a2f;
+  --green: #6a9955;
+  --yellow: #cf9a2f;
+  --gray: #9c948a;
+  --tile-bg: #fffdf7;
+  --tile-border: #cfc4aa;
+  --tile-border-on: #a89a7c;
+  --shadow: 0 2px 0 #d8cdb4;
+  --radius: 10px;
+}
+
+[data-theme="dark"] {
+  --paper: #1b1a18;
+  --paper-2: #232119;
+  --card: #2a2825;
+  --ink: #ece5d6;
+  --ink-soft: #a89e8b;
+  --ink-faint: #7d7466;
+  --line: #3d3a34;
+  --line-strong: #55503f;
+  --seal: #d4574a;
+  --green: #6f9c5c;
+  --yellow: #c79a3c;
+  --gray: #5f5a52;
+  --tile-bg: #302d29;
+  --tile-border: #4a463f;
+  --tile-border-on: #8c8471;
+  --shadow: 0 2px 0 #151412;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--paper);
+  background-image:
+    radial-gradient(circle at 20% 12%, rgba(178, 58, 47, .04), transparent 45%),
+    radial-gradient(circle at 82% 78%, rgba(106, 153, 85, .05), transparent 45%);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: contain;
+}
+
+.app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0 10px calc(12px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 2px 6px;
+  gap: 8px;
+}
+
+.topbar-side { display: flex; gap: 6px; flex: 1; }
+.topbar-side.right { justify-content: flex-end; }
+
+.brand {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+}
+
+.seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: var(--seal);
+  color: #fff8ef;
+  font-size: 15px;
+  border-radius: 5px;
+  letter-spacing: 0;
+  box-shadow: 0 1px 3px rgba(120, 40, 30, .35);
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .12s, border-color .15s;
+}
+.icon-btn:active { transform: scale(.92); }
+.icon-btn:hover { border-color: var(--tile-border-on); }
+
+/* ---------- 模式条 ---------- */
+.modebar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 8px;
+  flex-wrap: wrap;
+}
+
+.chip-group {
+  display: flex;
+  gap: 5px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--paper-2);
+}
+
+.mode-chip {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.mode-chip.is-on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+/* ---------- 信息条 ---------- */
+.metabar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 2px 0 10px;
+  flex-wrap: wrap;
+  min-height: 22px;
+}
+.meta-dot { color: var(--ink-faint); }
+.meta-hinttag { color: var(--seal); font-size: 12px; }
+
+/* ---------- 棋盘 ---------- */
+.board-wrap {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  padding: 2px 0 8px;
+}
+
+.board {
+  display: grid;
+  gap: 5px;
+  width: min(96vw, calc(var(--cols, 7) * 54px));
+  grid-template-columns: repeat(var(--cols, 7), 1fr);
+  perspective: 700px;
+}
+
+.tile {
+  aspect-ratio: 1 / 1;
+  border: 2px solid var(--tile-border);
+  background: var(--tile-bg);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: clamp(17px, 5.6vw, 27px);
+  font-weight: 600;
+  color: var(--ink);
+  user-select: none;
+  line-height: 1;
+  transition: border-color .12s, transform .1s;
+}
+.tile.filled { border-color: var(--tile-border-on); animation: pop .09s ease-out; }
+.tile.cursor { border-color: var(--seal); border-style: dashed; }
+
+@keyframes pop { 0% { transform: scale(.9); } 100% { transform: scale(1); } }
+
+/* 翻牌：前半程转走，后半程转回并显示结果色 */
+.tile.flip-in { animation: flipIn .21s ease-in forwards; }
+.tile.flip-out { animation: flipOut .21s ease-out; }
+@keyframes flipIn { from { transform: rotateX(0deg); } to { transform: rotateX(90deg); } }
+@keyframes flipOut { from { transform: rotateX(90deg); } to { transform: rotateX(0deg); } }
+
+.tile.correct { background: var(--green); border-color: var(--green); color: #fff; }
+.tile.present { background: var(--yellow); border-color: var(--yellow); color: #fff; }
+.tile.absent  { background: var(--gray); border-color: var(--gray); color: #fff; }
+.tile.bounce  { animation: bounce .5s ease; }
+@keyframes bounce {
+  0%,100% { transform: translateY(0); }
+  35%     { transform: translateY(-14px); }
+}
+
+.row-shake { animation: shake .38s cubic-bezier(.36,.07,.19,.97); }
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(4px); }
+  30%, 50%, 70% { transform: translateX(-6px); }
+  40%, 60% { transform: translateX(6px); }
+}
+
+/* ---------- toast ---------- */
+.toast {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  z-index: 30;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  animation: toastIn .18s ease-out;
+  white-space: nowrap;
+}
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; } }
+
+/* ---------- 已知信息 / 已用字 ---------- */
+.knownbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px 8px;
+  font-size: 13px;
+}
+.known-pill {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 3px 11px;
+}
+.known-pill b { color: var(--ink); font-weight: 600; }
+
+/* ---------- 候选字盘 ---------- */
+.keys-tip {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint);
+  padding: 6px 0 0;
+  letter-spacing: .04em;
+}
+.keys-tip:empty { display: none; }
+
+.keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 5px;
+  padding: 10px 2px 2px;
+  width: min(96vw, 470px);
+  margin: 0 auto;
+}
+
+.key {
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 8px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: clamp(15px, 4.2vw, 20px);
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: var(--shadow);
+  transition: transform .08s, background .2s, border-color .2s;
+  user-select: none;
+}
+.key:active { transform: translateY(2px); box-shadow: none; }
+.key.correct { background: var(--green); border-color: var(--green); color: #fff; }
+.key.present { background: var(--yellow); border-color: var(--yellow); color: #fff; }
+.key.absent  { background: var(--gray); border-color: var(--gray); color: #fff; opacity: .7; }
+
+/* ---------- 控制按钮 ---------- */
+.controls {
+  display: flex;
+  gap: 6px;
+  padding: 8px 2px 4px;
+  justify-content: center;
+}
+.ctl-btn {
+  flex: 0 1 auto;
+  min-width: 52px;
+  padding: 11px 12px;
+  font-size: 14px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform .08s;
+}
+.ctl-btn:active { transform: translateY(2px); box-shadow: none; }
+.ctl-btn.ghost { color: var(--ink-soft); font-size: 13px; padding: 11px 9px; }
+.ctl-btn.primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+  font-weight: 600;
+  flex: 1;
+  max-width: 130px;
+}
+
+/* ---------- 隐藏输入 ---------- */
+#kbInput {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 1px; height: 1px;
+  opacity: 0;
+  border: none; padding: 0; margin: 0;
+  font-size: 16px;
+  z-index: -1;
+}
+
+/* ---------- 弹窗 ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 24, 18, .5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 60;
+  animation: fade .18s ease-out;
+}
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.modal[hidden] { display: none; }
+
+.modal-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 22px 20px 18px;
+  width: 100%;
+  max-width: 400px;
+  max-height: 86vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 18px 44px rgba(0,0,0,.28);
+  animation: rise .22s ease-out;
+}
+@keyframes rise { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.modal-card h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  letter-spacing: .06em;
+}
+.modal-card h3 {
+  margin: 18px 0 8px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.modal-card p { font-size: 14px; line-height: 1.75; color: var(--ink-soft); margin: 0 0 10px; }
+.modal-card p.lead { color: var(--ink); }
+.modal-card strong { color: var(--seal); }
+
+.modal-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.demo { margin: 12px 0 4px; }
+.demo-row { display: flex; gap: 6px; margin-bottom: 12px; }
+.demo-row .tile { width: 42px; height: 42px; aspect-ratio: auto; font-size: 19px; }
+.demo-list { list-style: none; padding: 0; margin: 0; }
+.demo-list li {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; color: var(--ink-soft); margin-bottom: 8px;
+}
+.demo-list .tile { width: 28px; height: 28px; aspect-ratio: auto; font-size: 15px; flex: none; }
+
+.rules {
+  border-top: 1px dashed var(--line);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.rules p { font-size: 13px; }
+.rules b { color: var(--ink); }
+
+.big-btn {
+  width: 100%;
+  padding: 13px;
+  border-radius: 11px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.big-btn.ghost { background: transparent; color: var(--ink-soft); border-color: var(--line); }
+.big-btn:active { transform: translateY(1px); }
+
+/* 统计 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.stat-cell {
+  text-align: center;
+  background: var(--paper-2);
+  border-radius: 10px;
+  padding: 10px 4px;
+}
+.stat-num { font-size: 21px; font-weight: 700; color: var(--ink); line-height: 1.2; }
+.stat-lab { font-size: 11px; color: var(--ink-faint); margin-top: 3px; }
+
+.dist { display: flex; flex-direction: column; gap: 5px; }
+.dist-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-soft); }
+.dist-num { width: 14px; text-align: right; color: var(--ink-faint); }
+.dist-bar {
+  flex: 1;
+  height: 18px;
+  background: var(--paper-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.dist-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 4px;
+  min-width: 2px;
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 5px;
+  transition: width .4s ease;
+}
+
+/* 图片提示 */
+.image-card { max-width: 560px; padding: 16px; }
+.hint-image-wrap img {
+  width: 100%;
+  display: block;
+  border-radius: 12px;
+  background: var(--paper-2);
+  min-height: 120px;
+}
+.image-note {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-faint);
+  padding-top: 9px;
+}
+
+/* 结果 */
+.result-poem {
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 17px;
+  line-height: 2;
+  text-align: center;
+  color: var(--ink);
+  background: var(--paper-2);
+  border-radius: 12px;
+  padding: 14px 10px;
+  margin: 10px 0 8px;
+}
+.result-poem .hit { color: var(--seal); font-weight: 700; }
+.result-src { text-align: center; font-size: 13px; color: var(--ink-soft); }
+.result-note { text-align: center; font-size: 12px; color: var(--ink-faint); margin: 4px 0 12px; min-height: 18px; }
+.result-btns { display: flex; gap: 8px; }
+.result-btns .big-btn { margin-top: 0; }
+
+@media (max-width: 380px) {
+  .brand { font-size: 17px; }
+  .ctl-btn { padding: 10px 8px; font-size: 13px; }
+  .ctl-btn.ghost { padding: 10px 7px; font-size: 12px; }
+}
