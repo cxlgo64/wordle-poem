@@ -407,19 +407,68 @@
     return (h.author ? 1 : 0) + (h.title ? 1 : 0) + ((h.chars || []).length) + (h.image ? 1 : 0);
   }
 
-  /* 看图提示：显示依谜底意境预生成的画面 */
-  function useHintImage() {
-    if (!game || game.status) { toast('本局已结束'); return; }
-    var url = (window.HINT_IMAGES || {})[game.answer];
-    if (!url) { toast('这句暂无配图，画师还在赶工'); return; }
+  /* ================= 看图提示 =================
+   * 现状：查预生成图库 js/hint-images.js（句 → 图片路径），无网络请求、点开秒出。
+   *
+   * ★ 接入「运行时实时生成」的端口就在下面这个 IMAGE_PORT ★
+   * 平台开放图像生成后，只需给它赋值一个 async 函数，其余逻辑（计分、弹窗、缓存）
+   * 都不用改：
+   *
+   *   IMAGE_PORT = async function (line) {
+   *     showImageLoading();                          // 生成约 10–20 秒，务必给加载态
+   *     const url = await callYourImageApi({         // ← 换成真实图像接口
+   *       prompt: buildPaintingPrompt(line),
+   *       size: '1536x1024',
+   *     });
+   *     return url;                                  // 返回可访问的图片地址
+   *   };
+   *
+   * 注意：
+   *   1. 生成结果建议回写 window.HINT_IMAGES[line.text] = url，下次点开就是缓存、秒出；
+   *   2. 作画提示词必须显式禁止文字（见 buildPaintingPrompt），否则画面常被写上诗句；
+   *   3. 失败要有降级提示，别让按钮点了没反应；
+   *   4. 图片提示计入 hints.image，计分与分享逻辑无需改动。
+   * ========================================== */
+  var IMAGE_PORT = null;   // ← 端口：null 表示仅用预生成图库
+
+  function buildPaintingPrompt(line) {
+    return 'Traditional Chinese ink wash painting of: ' + line.text +
+      ' (' + (line.d || '') + ' ' + (line.a || '') + '). ' +
+      'Poetic, minimalist, soft ink tones, wide empty space. ' +
+      'Absolutely NO text, NO letters, NO calligraphy, NO watermark in the image.';
+  }
+
+  function getHintImageUrl(text) {
+    return (window.HINT_IMAGES || {})[text] || null;
+  }
+
+  function showHintImage(text, url) {
     if (!game.hints.image) {
       game.hints.image = 1;
       save();
       renderMeta();
     }
-    var img = $('hintImage');
-    img.src = url;
+    if (url) window.HINT_IMAGES[text] = url;          // 回写缓存，下次秒开
+    $('hintImage').src = url || '';
     $('modalImage').hidden = false;
+  }
+
+  function useHintImage() {
+    if (!game || game.status) { toast('本局已结束'); return; }
+    var line = lineOf(game.answer);
+    var cached = getHintImageUrl(game.answer);
+    if (cached) { showHintImage(game.answer, cached); return; }
+
+    if (!IMAGE_PORT) { toast('这句暂无配图，画师还在赶工'); return; }
+
+    toast('正在作画，稍等几秒…', 4000);
+    Promise.resolve()
+      .then(function () { return IMAGE_PORT(line); })
+      .then(function (url) {
+        if (url) showHintImage(game.answer, url);
+        else toast('作画失败，换个提示试试');
+      })
+      .catch(function () { toast('作画失败，换个提示试试'); });
   }
 
   /* ============ toast ============ */
