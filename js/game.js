@@ -184,6 +184,7 @@
 
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+    cloudSave();     // 本地先落盘，再把快照交给云存档（站外/未接入时自动跳过）
   }
 
   /* ============ DOM ============ */
@@ -272,6 +273,8 @@
     renderAll();
     closeResult();
     if (!locked && !('ontouchstart' in window)) kb.focus();
+    // 未结束的一局提前开好榜单 run，猜中时直接结算（失败不影响游戏）
+    if (!game.status && lb && lb.token) { try { lbEnsureRun().catch(function () {}); } catch (e) {} }
   }
 
   /* ============ 渲染 ============ */
@@ -613,6 +616,10 @@
       s.streak = 0;
     }
     save();
+    // 排行榜：只记「每日一题」的胜局，分数 = 猜中用了几步（1–6，越少越好）
+    if (win && state.settings.play === 'daily' && game.guesses.length >= 1) {
+      try { lbSubmit(game.guesses.length); } catch (e) {}
+    }
   }
 
   /* ============ 提示 ============ */
@@ -817,14 +824,214 @@
   });
   applyTheme();
 
+  /* ============ AIWANNA 云存档 / 排行榜 ============
+   * 只在 AIWANNA 站内播放器里生效（游戏嵌在 iframe 中）。
+   * 独立打开（自己的 GitHub Pages / 本地文件）时 window.parent === window，
+   * 云存档与排行榜都自动跳过，游戏照常能玩，只是不同步、不上榜。
+   */
+  var GAME_VERSION = '1.1.0';
+  var CLOUD_GAME_ID = 'ce8abf60-4729-488a-87f6-eb14bdb64d3f';
+  var PLATFORM_ORIGIN = 'https://www.aiwanna.games';
+  var BOARD_ID = '650ddddb-ad6e-482a-935d-9e69d0a05236';
+  var PLATFORM_ORIGINS = [
+    'https://www.aiwanna.games', 'https://aiwanna.games',
+    'https://www.ai-made.games', 'https://ai-made.games',
+    'https://1gp-game-platform.vercel.app'
+  ];
+  function inPlatform() { return !!(window.parent && window.parent !== window); }
+
+  var cloud = { mode: 'local', api: null, importing: false };
+
+  function exportState() {
+    // 云存档上限 256 KiB，只带最近 60 局（按写入顺序），战绩与设置全带
+    var ks = Object.keys(state.games), g = {};
+    ks.slice(-60).forEach(function (k) { g[k] = state.games[k]; });
+    return JSON.parse(JSON.stringify({
+      settings: state.settings, stats: state.stats,
+      games: g, recent: state.recent
+    }));
+  }
+
+  function importState(data) {
+    if (!data || typeof data !== 'object') return;
+    var d = defaults();
+    cloud.importing = true;
+    state.settings = Object.assign(d.settings, data.settings || {});
+    state.stats = Object.assign(d.stats, data.stats || {});
+    state.games = data.games || {};
+    state.recent = Array.isArray(data.recent) ? data.recent : [];
+    if (!state.stats.dist || state.stats.dist.length !== 6) state.stats.dist = d.stats.dist;
+    save();
+    cloud.importing = false;
+    syncModeChips(); applyTheme();
+    startGame(false);
+  }
+
+  function summary(data) {
+    var s = (data && data.stats) || state.stats;
+    var rate = s.played ? Math.round(s.wins / s.played * 100) : 0;
+    return '已玩 ' + s.played + ' 局 · 胜率 ' + rate + '% · 连胜 ' + s.streak;
+  }
+
+  function cloudSave() {
+    if (!cloud || cloud.importing || cloud.mode !== 'cloud') return;
+    if (!cloud.api || !cloud.api.save) return;
+    try { var p = cloud.api.save(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  }
+
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      var s = document.createElement('script');
+      s.src = src; s.async = true;
+      s.onload = function () { res(); };
+      s.onerror = function () { rej(new Error('sdk load failed')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  /* ---- 排行榜：每日一题的胜局，按猜中步数计（越少越好） ---- */
+  var lb = { token: null, origin: null, expiresAt: 0, runId: null, runKey: null, busy: false };
+
+  function uuid() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0;
+      return ((c === 'x' ? r : (r & 0x3 | 0x8))).toString(16);
+    });
+  }
+
+  // 凭证握手：向父窗口逐个域名发 postMessage，只认父窗口回的、origin 在白名单里的回复
+  function lbHandshake() {
+    return new Promise(function (resolve) {
+      if (!inPlatform()) return resolve(null);
+      var reqId = uuid(), done = false, timer = null;
+      function finish(v) {
+        if (done) return;
+        done = true; clearTimeout(timer);
+        window.removeEventListener('message', onMsg);
+        resolve(v);
+      }
+      function onMsg(e) {
+        if (e.source !== window.parent) return;
+        if (PLATFORM_ORIGINS.indexOf(e.origin) === -1) return;
+        var d = e.data || {};
+        if (d.source !== 'aimadegames-platform' || d.type !== 'leaderboard-session') return;
+        if (d.requestId !== reqId) return;
+        if (!d.session || !d.session.token) return finish(null);
+        if (d.apiOrigin && d.apiOrigin !== e.origin) return finish(null);
+        finish({ origin: e.origin, token: d.session.token, expiresAt: d.session.expiresAt || 0 });
+      }
+      window.addEventListener('message', onMsg);
+      timer = setTimeout(function () { finish(null); }, 15000);
+      PLATFORM_ORIGINS.forEach(function (o) {
+        try {
+          window.parent.postMessage(
+            { source: 'aimadegames', type: 'leaderboard-session', requestId: reqId }, o);
+        } catch (e) {}
+      });
+    });
+  }
+
+  function lbEnsureRun() {
+    if (lb.runId) return Promise.resolve(lb.runId);
+    if (!lb.token) return Promise.reject(new Error('no token'));
+    var key = uuid();
+    return fetch(lb.origin + '/api/v1/leaderboards/' + BOARD_ID + '/runs', {
+      method: 'POST', credentials: 'omit',
+      headers: {
+        'Authorization': 'Bearer ' + lb.token,
+        'Idempotency-Key': key,
+        'Content-Type': 'application/json'
+      },
+      body: '{}'
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.runId) throw new Error('no runId');
+      lb.runId = j.runId; lb.runKey = key;
+      return lb.runId;
+    });
+  }
+
+  function lbSubmit(score) {
+    if (!lb.token || lb.busy) return;
+    lb.busy = true;
+    lbEnsureRun().then(function (runId) {
+      return fetch(lb.origin + '/api/v1/runs/' + runId + '/score', {
+        method: 'POST', credentials: 'omit',
+        headers: {
+          'Authorization': 'Bearer ' + lb.token,
+          'Idempotency-Key': uuid(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ score: score })
+      }).then(function (r) { return r.json(); });
+    }).then(function (j) {
+      if (j && j.isPersonalBest) toast('上榜：' + score + ' 步猜中，个人最佳！', 3200);
+      else if (j && typeof j.rank === 'number') toast('已上榜：第 ' + j.rank + ' 名', 3200);
+    }).catch(function () {}).then(function () {
+      lb.busy = false;
+      lb.runId = null;      // 一局一个 run，结算完清空，下一局重新开
+    });
+  }
+
   /* ============ 启动 ============ */
-  if (!ALL.length) {
-    board.innerHTML = '<div style="grid-column:1/-1;color:var(--seal)">诗词库加载失败</div>';
-  } else {
+  function boot() {
     syncModeChips();
     startGame(false);
     if (FRESH) $('modalHelp').hidden = false;   // 首次进入自动说明玩法
     else if (game && game.status) setTimeout(function () { openResult(game.status === 'win'); }, 300);
+  }
+
+  function bootOverlay(html) {
+    var el = document.createElement('div');
+    el.id = 'bootOverlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99;display:flex;align-items:center;' +
+      'justify-content:center;background:var(--bg);color:var(--ink);text-align:center;padding:24px';
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  if (!ALL.length) {
+    board.innerHTML = '<div style="grid-column:1/-1;color:var(--seal)">诗词库加载失败</div>';
+  } else if (!inPlatform()) {
+    boot();                                     // 站外独立打开：纯本地，直接开局
+  } else {
+    var ov = bootOverlay('<div>正在同步云存档…</div>');
+    lbHandshake().then(function (s) {
+      if (s) { lb.origin = s.origin; lb.token = s.token; lb.expiresAt = s.expiresAt; }
+    }).catch(function () {});
+    loadScript(PLATFORM_ORIGIN + '/sdk/cloud-saves-v1.js').then(function () {
+      if (!window.AIWanna || !window.AIWanna.saves) throw new Error('sdk missing');
+      return window.AIWanna.saves.initialize({
+        platformOrigin: PLATFORM_ORIGIN,
+        gameId: CLOUD_GAME_ID,
+        schemaVersion: 1,
+        gameVersion: GAME_VERSION,
+        exportState: exportState,
+        importState: importState,
+        migrateState: function (d, from, to) {
+          if (from === to) return d;
+          throw new Error('unsupported schema ' + from);
+        },
+        summary: summary
+      });
+    }).then(function (api) {
+      cloud.api = api || null;
+      cloud.mode = 'cloud';
+      ov.remove();
+      boot();
+    }).catch(function () {
+      // 云存档连不上：不擅自开局，让玩家自己决定离线继续
+      ov.innerHTML = '';
+      var box = document.createElement('div');
+      box.innerHTML = '<div style="margin-bottom:14px">云存档连接失败，进度暂时无法同步。</div>';
+      var b = document.createElement('button');
+      b.className = 'big-btn';
+      b.textContent = '离线继续（不同步进度）';
+      b.onclick = function () { ov.remove(); cloud.mode = 'local'; boot(); };
+      box.appendChild(b);
+      ov.appendChild(box);
+    });
   }
 
   // 调试入口
