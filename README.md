@@ -89,12 +89,34 @@ IMAGE_PORT = async function (line) {
 2. 生成结果记得回写缓存，避免同一句反复消耗额度；
 3. 图片提示计入 `hints.image`，计分与成绩分享无需改动。
 
+## 出包与发布（AIWANNA / ai-made.games）
+
+平台的「静态网页」通道要求：文件合计 **≤ 3 MiB、≤ 300 个文件**、必须含 `index.html`，且不接受凭证、source map 或源码目录。用脚本出一份干净产物：
+
+```bash
+node tools/build-dist.js                # 不带提示图，约 0.1 MiB（首发推荐）
+node tools/build-dist.js --with-images  # 带上 assets/hints 里的提示图
+```
+
+产物落在 `dist/`，只含 `index.html` + `css/` + `js/`（带图时再加 `assets/hints/`）。**不带图时图库映射为空，游戏会自动隐藏「看图」按钮**，不会留下点了没反应的死按钮；之后想加回来，用 `--with-images` 重新出包再发一次版本即可。
+
+发布走官方 MCP，**没有网页上传入口**：
+
+```bash
+claude mcp add onegp --scope user -- npx --yes github:1gp-studio/publisher-mcp#v0.15.0
+```
+
+要求 Node.js ≥ 24、npm、Git 且能访问 GitHub。授权在浏览器完成（凭证存 `~/.config/1gp-studio/`，有效期 90 天），随后由本地 AI 调用 `prepare_game` → `publish_game` → `set_game_details` / `set_game_media` 完成发布。
+
+首发还需要准备：分类（本项目为 `puzzle`）、≤5 个标签、一张 16:9 **无字**主封面、制作信息（AI 工具 / 竖屏 / 一局时长）和至少 3 张真实游戏截图。
+
 ## 测试
 
 ```bash
 npm install jsdom                       # 仅测试需要
 node tools/smoke.js                     # 诗词库数据 + 判定算法（含重复字用例）
 node tools/dom-smoke.js                 # jsdom 加载真实页面跑完整对局
+PW_ROOT=$PWD/dist node tools/dom-smoke.js   # 对 dist 产物跑同一套冒烟
 ```
 
 `tools/dom-smoke.js` 覆盖：非诗句被拒绝、点字盘输入、翻牌着色、提示计数、胜利弹窗、战绩落盘、模式切换，并对三种诗体各随机 10 局校验「答案一定能用字盘拼出」。

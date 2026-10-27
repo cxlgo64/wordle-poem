@@ -431,6 +431,14 @@
    * ========================================== */
   var IMAGE_PORT = null;   // ← 端口：null 表示仅用预生成图库
 
+  /** 是否真的有图可看：接了实时生成端口，或预生成图库里至少有一张图 */
+  function imageHintAvailable() {
+    if (IMAGE_PORT) return true;
+    var m = window.HINT_IMAGES || {};
+    for (var k in m) { if (m[k]) return true; }
+    return false;
+  }
+
   function buildPaintingPrompt(line) {
     return 'Traditional Chinese ink wash painting of: ' + line.text +
       ' (' + (line.d || '') + ' ' + (line.a || '') + '). ' +
@@ -772,6 +780,12 @@
   $('btnHintTitle').addEventListener('click', function () { useHint('title'); });
   $('btnHintChar').addEventListener('click', function () { useHint('char'); });
   $('btnHintImage').addEventListener('click', useHintImage);
+  // 没有图可看时（图库为空且未接实时生成端口）隐藏按钮与帮助里的对应说明，
+  // 避免出现「点了只弹一句暂无配图」的死按钮。
+  if (!imageHintAvailable()) {
+    $('btnHintImage').hidden = true;
+    if ($('helpImageTip')) $('helpImageTip').hidden = true;
+  }
   $('btnBack').addEventListener('click', backspace);
   $('btnEnter').addEventListener('click', function () { submit(); if (!locked) kb.focus(); });
 

@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = process.env.PW_ROOT ? path.resolve(process.env.PW_ROOT) : path.resolve(__dirname, '..');
 const errors = [];
 const vc = new VirtualConsole();
 vc.on('jsdomError', e => errors.push('jsdomError: ' + e.message));
@@ -73,6 +73,12 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   const pills = d.querySelectorAll('#knownBar .known-pill');
   check(pills.length === 2, '作者/诗题提示已显示');
   check(!d.getElementById('hintTag').hidden, '提示计数标记出现');
+
+  // 4.4 「看图」按钮随图库自动显隐（不打包图片的版本不能留死按钮）
+  const imgBtn = d.getElementById('btnHintImage');
+  const hadImages = Object.keys(w.HINT_IMAGES || {}).some(k => w.HINT_IMAGES[k]);
+  check(imgBtn.hidden === !hadImages,
+    (hadImages ? '有配图：' : '无配图：') + '「看图」按钮' + (hadImages ? '显示' : '已自动隐藏'));
 
   // 4.5 图片提示：有图 → 弹窗 + 计数；无图 → toast
   w.HINT_IMAGES = w.HINT_IMAGES || {};

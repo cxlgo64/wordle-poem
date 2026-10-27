@@ -89,12 +89,34 @@ When wiring it up:
 2. Write results back to the cache so the same line isn't billed repeatedly;
 3. Picture hints count as `hints.image`; scoring and share text need no changes.
 
+## Building and publishing (AIWANNA / ai-made.games)
+
+The platform's **static web** channel requires: **≤ 3 MiB total, ≤ 300 files**, must contain `index.html`, and no credentials, source maps or source directories. Produce a clean bundle with:
+
+```bash
+node tools/build-dist.js                # without hint images, ~0.1 MiB (recommended for launch)
+node tools/build-dist.js --with-images  # includes assets/hints
+```
+
+Output goes to `dist/` and contains only `index.html` + `css/` + `js/` (plus `assets/hints/` when images are included). **When images are excluded the image map is empty and the game hides the "Picture" button automatically** — no dead button that only shows a toast. To bring it back later, rebuild with `--with-images` and publish a new version.
+
+Publishing goes through the official MCP — **there is no web upload form**:
+
+```bash
+claude mcp add onegp --scope user -- npx --yes github:1gp-studio/publisher-mcp#v0.15.0
+```
+
+Requires Node.js ≥ 24, npm and Git with GitHub access. Authorization happens in the browser (credentials stored in `~/.config/1gp-studio/`, valid 90 days); the local AI then calls `prepare_game` → `publish_game` → `set_game_details` / `set_game_media`.
+
+A first launch also needs: a genre (`puzzle` for this game), up to 5 tags, a 16:9 **text-free** main cover, maker details (AI tools / orientation / session length) and at least 3 real gameplay screenshots.
+
 ## Tests
 
 ```bash
 npm install jsdom                       # test-only dependency
 node tools/smoke.js                     # corpus data + judging algorithm (incl. duplicate-character cases)
 node tools/dom-smoke.js                 # loads the real page in jsdom and plays a full round
+PW_ROOT=$PWD/dist node tools/dom-smoke.js   # same suite against the dist bundle
 ```
 
 `tools/dom-smoke.js` covers: rejecting non-poetry input, tapping the character tray, tile flip coloring, hint counting, the win modal, persisting stats, and mode switching — plus 10 random rounds per mode asserting that **the answer can always be spelled from the tray**.
