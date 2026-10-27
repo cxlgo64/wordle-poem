@@ -1,5 +1,6 @@
 node_modules/
 dist/
+1gp-kit/
 .DS_Store
 *.log
 *.local
